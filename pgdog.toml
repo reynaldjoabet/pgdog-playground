@@ -1,0 +1,33 @@
+
+[general]
+workers            = 8          # 2 per vCPU; default 2
+default_pool_size  = 25         # the server-fd budget line
+min_pool_size      = 5          # pre-opened; keeps connect+TLS off the hot path
+pooler_mode        = "transaction" # session mode pins 1 server fd per client
+
+# ── reclaim descriptors that stopped doing work ─────────────
+idle_timeout                       = 60_000     # default; closes idle servers above min
+client_idle_timeout                = 300_000    # DEFAULT: unlimited — dead clients hold fds forever
+client_idle_in_transaction_timeout = 60_000     # also pins a pool slot
+server_lifetime                    = 3_600_000  # default 24h; 1h rebalances after failover
+server_lifetime_jitter             = 300_000    # DEFAULT: 0 — without it the cohort reconnects at once
+
+# ── bound how long one descriptor can be held ───────────────
+query_timeout    = 30_000   # DEFAULT: unlimited — one hung query pins a pool slot
+checkout_timeout = 5_000    # fail fast instead of queueing clients forever
+connect_timeout  = 5_000
+rollback_timeout = 5_000    # caps the async cleanup that delays check-in
+ban_timeout      = 300_000
+shutdown_timeout             = 60_000  # drain window; both processes hold pools
+shutdown_termination_timeout = 30_000  # then cancel and release
+
+[memory]
+net_buffer     = 4096   # ×2 per socket: 4k clients ≈ 32 MiB in socket buffers
+message_buffer = 4096   # raise both only when client count is low
+
+[tcp]
+keepalive    = true
+time         = 15_000  # probe after 15s idle, not the 2h system default
+interval     = 5_000
+retries      = 3       # dead peer detected in ~30s, not ~2h
+user_timeout = 30_000  # Linux only; kills half-open sockets holding fds
